@@ -5,7 +5,7 @@ import random
 # Configuración de la página
 st.set_page_config(page_title="Menú Familiar Quitian", layout="wide", page_icon="🥑")
 
-st.title("🥑 Planificador Semanal - Desayuno, Almuerzo y Cena")
+st.title("🥑 Planificador de comidas - Familia Misat Quitian")
 st.markdown("Planificación balanceada para: **2 Adultos + Niño (2 años) + Bebé (6 meses)**")
 
 # --- 1. CARGA DE DATOS ---
