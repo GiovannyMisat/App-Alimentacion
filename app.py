@@ -2,120 +2,112 @@ import streamlit as st
 import pandas as pd
 import random
 
-# Configuración de la página
-st.set_page_config(page_title="Menú Familiar Quitian", layout="wide", page_icon="🥑")
+# Configuración
+st.set_page_config(page_title="Menú Familiar 2.0", layout="wide", page_icon="🥑")
+st.title("🥑 Planificador Familiar 2.0")
+st.markdown("Logica: **Tablas Independientes + BLW + Menú Matías**")
 
-st.title("🥑 Planificador de comidas - Familia Misat Quitian")
-st.markdown("Planificación balanceada para: **2 Adultos + Niño (2 años) + Bebé (6 meses)**")
-
-# --- 1. CARGA DE DATOS ---
+# --- 1. CARGA DE DATOS MULTI-TABLA ---
 @st.cache_data
 def load_data():
+    file_name = "NUEVO_MENU_FAMILIAR.xlsx" 
     try:
-        df = pd.read_excel("ALIMENTACION.xlsx")
-        # Convertimos todo a mayúsculas para facilitar la búsqueda
-        df = df.applymap(lambda s: s.upper() if type(s) == str else s)
-        return df
+        xls = pd.ExcelFile(file_name)
+        # Cargamos cada pestaña en un DataFrame diferente
+        d_desayuno = pd.read_excel(xls, 'DESAYUNO')
+        d_almuerzo = pd.read_excel(xls, 'ALMUERZO')
+        d_cena = pd.read_excel(xls, 'CENA')
+        d_blw = pd.read_excel(xls, 'BLW_AGUSTIN')
+        d_matias = pd.read_excel(xls, 'MATIAS_FRUTA')
+        return d_desayuno, d_almuerzo, d_cena, d_blw, d_matias
     except FileNotFoundError:
-        st.error("⚠️ No se encontró el archivo ALIMENTACION.xlsx. Súbelo al repositorio.")
-        return pd.DataFrame()
-    except Exception as e:
-        st.error(f"Error al leer el archivo: {e}")
-        return pd.DataFrame()
+        st.error(f"⚠️ Falta el archivo {file_name}. Súbelo a GitHub.")
+        return None, None, None, None, None
 
-df = load_data()
+d_des, d_alm, d_cen, d_blw, d_mat = load_data()
 
-# --- 2. LÓGICA DE CLASIFICACIÓN (FILTROS) ---
-def clasificar_ingredientes(dataframe):
-    if dataframe.empty: return {}, {}, {}, {}, {}, {}
+# --- 2. FUNCIONES DE SELECCIÓN ---
+def get_random(df, col):
+    """Obtiene un valor aleatorio de una columna, ignorando vacíos"""
+    if df is None or col not in df.columns: return "N/A"
+    items = df[col].dropna().tolist()
+    return random.choice(items) if items else "Sin opciones"
 
-    # Listas crudas (eliminando vacíos)
-    proteinas_all = dataframe['PREPARACIONES CON PROTEINA'].dropna().tolist()
-    carbos_all = dataframe['CARBOHIDRATOS'].dropna().tolist()
-    verduras = dataframe['VERDURA'].dropna().tolist()
-    frutas = dataframe['FRUTA'].dropna().tolist()
-    # Ajusta 'NIÑOS' según el nombre exacto de tu columna en el Excel
-    ninos = dataframe['NIÑOS'].dropna().tolist() if 'NIÑOS' in dataframe.columns else []
-    grasas = dataframe['GRASAS'].dropna().tolist() if 'GRASAS' in dataframe.columns else []
-
-    # --- FILTROS INTELIGENTES ---
-    # Palabras clave para identificar desayunos
-    keywords_desayuno_prot = ['HUEVO', 'QUESO', 'JAMON', 'SALCHICHA', 'TORTILLA', 'OMELETTE']
-    keywords_desayuno_carb = ['AREPA', 'PAN', 'TOSTADA', 'GALLETA', 'CEREAL', 'AVENA', 'CAYEYE', 'BOLLO', 'WAFFLE', 'PANCAKE', 'MUFFIN']
-
-    # Separación de Proteínas
-    prot_desayuno = [p for p in proteinas_all if any(k in p for k in keywords_desayuno_prot)]
-    prot_fuerte = [p for p in proteinas_all if p not in prot_desayuno] # Lo que sobra es para almuerzo/cena
-
-    # Separación de Carbohidratos
-    carb_desayuno = [c for c in carbos_all if any(k in c for k in keywords_desayuno_carb)]
-    carb_fuerte = [c for c in carbos_all if c not in carb_desayuno]
-
-    # Si las listas filtradas quedan vacías, usamos las generales como respaldo
-    if not prot_desayuno: prot_desayuno = proteinas_all
-    if not prot_fuerte: prot_fuerte = proteinas_all
-    if not carb_desayuno: carb_desayuno = carbos_all
-    if not carb_fuerte: carb_fuerte = carbos_all
-
-    return prot_desayuno, prot_fuerte, carb_desayuno, carb_fuerte, verduras, frutas, ninos, grasas
-
-# --- 3. GENERADOR DE MENÚ ---
-def generar_menu_completo(df):
-    p_desayuno, p_fuerte, c_desayuno, c_fuerte, verduras, frutas, ninos, grasas = clasificar_ingredientes(df)
-    
+def generar_menu_semanal():
     dias = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo']
-    menu_data = []
+    menu = []
 
     for dia in dias:
-        # Selección aleatoria
-        fruta_dia = random.choice(frutas) if frutas else "Fruta"
-        verdura_dia = random.choice(verduras) if verduras else "Verdura"
+        # --- LÓGICA ADULTOS ---
+        des_prot = get_random(d_des, 'PROTEINA')
+        des_carb = get_random(d_des, 'CARBOHIDRATOS')
         
-        # --- ESTRUCTURA DEL DÍA ---
-        # DESAYUNO: Proteína suave + Carbohidrato de desayuno + Fruta
-        desayuno = f"{random.choice(p_desayuno)} + {random.choice(c_desayuno)} + {fruta_dia}"
+        alm_prot = get_random(d_alm, 'PROTEINA')
+        alm_carb = get_random(d_alm, 'CARBOHIDRATOS')
+        alm_verd = get_random(d_alm, 'VERDURA')
         
-        # ALMUERZO: Proteína fuerte + Carbohidrato fuerte + Verdura
-        almuerzo = f"{random.choice(p_fuerte)} + {random.choice(c_fuerte)} + {verdura_dia}"
-        
-        # CENA: Proteína fuerte (puede ser diferente) + Verdura/Carbo ligero
-        # A veces la cena es sin carbohidrato o más ligera
-        cena = f"{random.choice(p_fuerte)} + {random.choice([random.choice(verduras), random.choice(c_fuerte)])}"
-        
-        # SNACK NIÑO
-        snack = random.choice(ninos) if ninos else fruta_dia
+        cen_prot = get_random(d_cen, 'PROTEINA_LIGERA')
+        cen_acom = get_random(d_cen, 'ACOMPANANTE')
 
-        # BEBÉ (BLW / AC) - Sugerencia basada en el almuerzo (sin sal)
-        tip_bebe = f"Ofrecer {verdura_dia} o trocito de proteína (sin sal)"
+        # --- LÓGICA MATÍAS (2 AÑOS) ---
+        # Come lo mismo + Fruta/Snack especial
+        fruta_matias = get_random(d_mat, 'FRUTA_SNACK')
+        menu_matias = f"Igual papás + 🍎 {fruta_matias}"
 
-        menu_data.append({
+        # --- LÓGICA AGUSTÍN (6 MESES - BLW) ---
+        # Seleccionamos 1 alimento seguro para explorar
+        blw_item = d_blw.sample(1).iloc[0] if d_blw is not None else None
+        if blw_item is not None:
+            agustin_menu = f"👶 **{blw_item['ALIMENTO']}**\n(Corte: {blw_item['CORTE_SEGURO_BLW']})"
+        else:
+            agustin_menu = "Consultar pediatra"
+
+        menu.append({
             'Día': dia,
-            '🍳 Desayuno': desayuno,
-            '🍗 Almuerzo': almuerzo,
-            '🥗 Cena': cena,
-            '👶 Snack / Bebé': f"Niño: {snack} | Bebé: {tip_bebe}"
+            '🍳 Desayuno (Todos)': f"{des_prot} + {des_carb}",
+            '🍗 Almuerzo (Todos)': f"{alm_prot} + {alm_carb} + {alm_verd}",
+            '🥗 Cena (Ligera)': f"{cen_prot} + {cen_acom}",
+            '👦 Matías (Extra)': f"Adicionar: {fruta_matias}",
+            '👶 Agustín (BLW)': agustin_menu
         })
     
-    return pd.DataFrame(menu_data)
+    return pd.DataFrame(menu)
 
-# --- 4. INTERFAZ GRÁFICA ---
-if st.button('🔄 Generar Nueva Semana'):
-    if not df.empty:
-        menu_generado = generar_menu_completo(df)
-        st.session_state['menu_semanal'] = menu_generado
-    else:
-        st.warning("No hay datos para procesar.")
+# --- 3. INTERFAZ ---
+if st.button('🔄 Generar Semana 2.0'):
+    if d_des is not None:
+        st.session_state['menu_v2'] = generar_menu_semanal()
 
-if 'menu_semanal' in st.session_state:
-    # Mostramos la tabla, pero usamos HTML para permitir saltos de línea si es muy larga
-    st.dataframe(
-        st.session_state['menu_semanal'], 
+if 'menu_v2' in st.session_state:
+    # Mostramos tabla principal
+    df_show = st.session_state['menu_v2']
+    
+    # CSS para hacer la tabla responsive en móviles
+    st.markdown("""
+    <style>
+    .stDataFrame {font-size: 0.8rem;}
+    </style>
+    """, unsafe_allow_html=True)
+
+    st.data_editor(
+        df_show, 
+        column_config={
+            "👶 Agustín (BLW)": st.column_config.TextColumn(
+                "👶 Agustín (BLW)",
+                help="Cortes seguros para inicio de alimentación complementaria",
+                width="medium"
+            ),
+            "👦 Matías (Extra)": st.column_config.TextColumn(
+                "👦 Matías (Extra)",
+                width="small"
+            )
+        },
         use_container_width=True,
-        hide_index=True
+        hide_index=True,
+        disabled=True
     )
     
-    st.markdown("---")
-    st.info("**Nota:** Este algoritmo clasifica tus alimentos automáticamente. Si ves 'Pollo' en el desayuno, asegúrate de que en tu Excel no diga 'Huevo con Pollo' o revisa si falta la palabra clave 'Huevo'.")
+    st.info("💡 **Tip BLW:** Recuerda que para Agustín (6 meses) la prioridad es la textura y el agarre. Cero sal y cero azúcar.")
 
 else:
-    st.info("👆 Haz clic en el botón para planificar tus 3 comidas diarias.")
+    st.write("Presiona el botón para cargar la nueva estructura de tablas.")
