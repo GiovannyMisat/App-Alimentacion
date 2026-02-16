@@ -93,4 +93,29 @@ def generar_menu_completo(df):
             '🍳 Desayuno': desayuno,
             '🍗 Almuerzo': almuerzo,
             '🥗 Cena': cena,
-            '👶 Snack / Bebé': f"Niño: {snack} | Bebé: {
+            '👶 Snack / Bebé': f"Niño: {snack} | Bebé: {tip_bebe}"
+        })
+    
+    return pd.DataFrame(menu_data)
+
+# --- 4. INTERFAZ GRÁFICA ---
+if st.button('🔄 Generar Nueva Semana'):
+    if not df.empty:
+        menu_generado = generar_menu_completo(df)
+        st.session_state['menu_semanal'] = menu_generado
+    else:
+        st.warning("No hay datos para procesar.")
+
+if 'menu_semanal' in st.session_state:
+    # Mostramos la tabla, pero usamos HTML para permitir saltos de línea si es muy larga
+    st.dataframe(
+        st.session_state['menu_semanal'], 
+        use_container_width=True,
+        hide_index=True
+    )
+    
+    st.markdown("---")
+    st.info("**Nota:** Este algoritmo clasifica tus alimentos automáticamente. Si ves 'Pollo' en el desayuno, asegúrate de que en tu Excel no diga 'Huevo con Pollo' o revisa si falta la palabra clave 'Huevo'.")
+
+else:
+    st.info("👆 Haz clic en el botón para planificar tus 3 comidas diarias.")
